@@ -1,4 +1,0 @@
-/home/ajay/de/debugger/CMakeFiles/debugger.dir
-/home/ajay/de/debugger/CMakeFiles/libelfin.dir
-/home/ajay/de/debugger/CMakeFiles/edit_cache.dir
-/home/ajay/de/debugger/CMakeFiles/rebuild_cache.dir
