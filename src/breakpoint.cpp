@@ -16,3 +16,18 @@ void breakpoint::enable()
 
     m_enabled = true;
 }
+
+// disable the break point
+void breakpoint::disable()
+{
+    // get data at the address from the process
+    auto data = ptrace(PTRACE_PEEKDATA, m_pid, m_addr, nullptr);
+
+    // restore the data
+    auto restored_data = ((data & ~0xff) | m_saved_data);
+
+    // change the data
+    ptrace(PTRACE_POKEDATA, m_pid, m_addr, restored_data);
+
+    m_enabled = false;
+}
