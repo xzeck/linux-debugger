@@ -19,22 +19,6 @@ void debugger::run()
     }
 }
 
-void debugger::handle_command(const std::string &line)
-{
-    auto args = split(line, ' ');
-    auto command = args[0];
-
-    if(is_prefix(command, "continue"))
-        continue_execution();
-    else if (is_prefix(command, "break")) 
-    {
-        std::string addr {args[1], 2}; // assuming the second argument is the address
-        set_break_point_at_address(std::stol(addr, 0, 16));
-    }
-    else
-        std::cerr << "Unknown command" << std::endl;
-}
-
 std::vector<std::string> split(const std::string &s, char delimiter)
 {
     std::vector<std::string> out {};
@@ -56,6 +40,22 @@ bool is_prefix(const std::string &s, const std::string &of)
     return std::equal(s.begin(), s.end(), of.begin());
 }
 
+void debugger::handle_command(const std::string &line)
+{
+    auto args = split(line, ' ');
+    auto command = args[0];
+
+    if(is_prefix(command, "continue"))
+        continue_execution();
+    else if (is_prefix(command, "break")) 
+    {
+        std::string addr {args[1], 2}; // assuming the second argument is the address
+        set_breakpoint_at_address(std::stol(addr, 0, 16));
+    }
+    else
+        std::cerr << "Unknown command" << std::endl;
+}
+
 void debugger::continue_execution()
 {
     ptrace(PTRACE_CONT, m_pid, nullptr, nullptr);
@@ -65,10 +65,10 @@ void debugger::continue_execution()
     waitpid (m_pid, &wait_status, options);
 }
 
-void debugger::set_breakpoint_at_address(intptr_t address)
+void debugger::set_breakpoint_at_address(std::intptr_t address)
 {
     std::cout << "Breakpoint set at address 0x" << std::hex << address << std::endl;
-    breakpoint bp(m_pid, address);
+    breakpoint bp {m_pid, address};
     bp.enable();
-    m_breakpoint[addr] = bp;
+    m_breakpoint[address] = bp;
 }

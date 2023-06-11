@@ -4,7 +4,12 @@ project (linux-debugger)
 add_compile_options(-std=c++14)
 
 include_directories(ext/libelfin ext/linenoise include)
-add_executable(debugger src/main.cpp ext/linenoise/linenoise.c)
+add_executable(debugger src/breakpoint.cpp src/debugger.cpp src/main.cpp ext/linenoise/linenoise.c)
+
+add_executable(hello tests/hello.cpp)
+set_target_properties(hello
+                      PROPERTIES COMPILE_FLAGS "-g -O0"
+                      RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/out/hello)
 
 add_custom_target(
    libelfin
