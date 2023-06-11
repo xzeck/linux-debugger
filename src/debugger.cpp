@@ -26,6 +26,11 @@ void debugger::handle_command(const std::string &line)
 
     if(is_prefix(command, "continue"))
         continue_execution();
+    else if (is_prefix(command, "break")) 
+    {
+        std::string addr {args[1], 2}; // assuming the second argument is the address
+        set_break_point_at_address(std::stol(addr, 0, 16));
+    }
     else
         std::cerr << "Unknown command" << std::endl;
 }
