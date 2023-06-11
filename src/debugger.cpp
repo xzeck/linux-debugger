@@ -59,3 +59,11 @@ void debugger::continue_execution()
     auto options = 0;
     waitpid (m_pid, &wait_status, options);
 }
+
+void debugger::set_breakpoint_at_address(intptr_t address)
+{
+    std::cout << "Breakpoint set at address 0x" << std::hex << address << std::endl;
+    breakpoint bp(m_pid, address);
+    bp.enable();
+    m_breakpoint[addr] = bp;
+}

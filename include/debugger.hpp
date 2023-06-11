@@ -8,6 +8,9 @@
 #include <vector>
 #include <sstream>
 #include <sys/ptrace.h>
+#include <unordered_map>
+
+#include "breakpoint.hpp"
 
 class debugger
 {
@@ -21,4 +24,5 @@ class debugger
     private:
     void handle_command(const std::string &line);
     void continue_execution();
+    std::unordered_map<intptr_t, breakpoint> m_breakpoint;
 };
