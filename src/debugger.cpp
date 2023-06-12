@@ -49,11 +49,11 @@ void debugger::handle_command(const std::string &line)
         continue_execution();
     else if (is_prefix(command, "break")) 
     {
-        // std::string addr {args[1], 2}; // assuming the second argument is the address
-        auto address = std::stol(args[1], 0, 16);
+        std::string addr {args[1], 0}; // assuming the second argument is the address
+        std::cout << addr << std::endl;
+        auto address = std::stol(addr, 0, 16);
 
-        std::cout << address << std::endl;
-
+        
         set_breakpoint_at_address(address);
     }
     else
