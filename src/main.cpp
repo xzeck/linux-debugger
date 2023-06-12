@@ -44,7 +44,7 @@ int main(int argc, char * argv[])
     else if (pid >= 1)
     {
         // parent process
-        std::cout << "Started debugging" << pid << "\n";
+        std::cout << "Started debugging " << pid << "\n";
         debugger dbg{prog, pid};
         dbg.run();
     }

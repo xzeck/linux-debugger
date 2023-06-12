@@ -11,7 +11,7 @@ void debugger::run()
 
     char *line = nullptr;
 
-    while((line = linenoise("minidbg> ")) != nullptr)
+    while((line = linenoise("debugger> ")) != nullptr)
     {
         handle_command(line);
         linenoiseHistoryAdd(line);
@@ -49,8 +49,12 @@ void debugger::handle_command(const std::string &line)
         continue_execution();
     else if (is_prefix(command, "break")) 
     {
-        std::string addr {args[1], 2}; // assuming the second argument is the address
-        set_breakpoint_at_address(std::stol(addr, 0, 16));
+        // std::string addr {args[1], 2}; // assuming the second argument is the address
+        auto address = std::stol(args[1], 0, 16);
+
+        std::cout << address << std::endl;
+
+        set_breakpoint_at_address(address);
     }
     else
         std::cerr << "Unknown command" << std::endl;
