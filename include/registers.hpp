@@ -57,4 +57,5 @@ const std::array<reg_descriptor, n_registers> g_register_descriptors{{
 }};
 
 uint64_t get_register_value(pid_t, reg r);
+void set_register_value(pid_t pid , reg r, uint64_t value);
 
