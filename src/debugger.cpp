@@ -94,11 +94,9 @@ void debugger::handle_command(const std::string &line)
 
 void debugger::continue_execution()
 {
+    step_over_breakpoint();
     ptrace(PTRACE_CONT, m_pid, nullptr, nullptr);
-
-    int wait_status;
-    auto options = 0;
-    waitpid (m_pid, &wait_status, options);
+    wait_for_signal();
 }
 
 void debugger::set_breakpoint_at_address(std::intptr_t address)
@@ -126,3 +124,43 @@ void debugger::write_memory(uint64_t address, uint64_t value)
 {
     ptrace(PTRACE_POKEDATA, m_pid, address, value);
 }
+
+uint64_t debugger::get_pc()
+{
+    return get_register_value(m_pid, reg::rip);
+}
+
+void debugger::set_pc(uint64_t pc)
+{
+    set_register_value(m_pid, reg::rip, pc);
+}
+
+void debugger::step_over_breakpoint()
+{
+    // The execution will be decremented by 1 as it goes beyond the breakpoint.
+    auto possible_breakpoint_location = get_pc() - 1;
+
+    if(m_breakpoint.count(possible_breakpoint_location))
+    {
+        auto &bp = m_breakpoint[possible_breakpoint_location];
+
+        if(bp.is_enabled())
+        {
+            auto previous_instruction_address = possible_breakpoint_location;
+            set_pc(previous_instruction_address);
+
+            bp.disable();
+            ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+            wait_for_signal();
+            bp.enable();
+        }
+    }
+}
+
+void debugger::wait_for_signal()
+{
+    int wait_status;
+    auto options = 0;
+    waitpid(m_pid, &wait_status, options);
+}
+

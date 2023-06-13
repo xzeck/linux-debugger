@@ -30,5 +30,7 @@ class debugger
     uint64_t read_memory(uint64_t address);
     void write_memory(uint64_t address, uint64_t value);
     uint64_t get_pc();
-    void set_pic(uint64_t pc);
+    void set_pc(uint64_t pc);
+    void step_over_breakpoint();
+    void wait_for_signal();
 };
