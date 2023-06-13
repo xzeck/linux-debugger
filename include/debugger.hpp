@@ -26,4 +26,9 @@ class debugger
     void handle_command(const std::string &line);
     void continue_execution();
     std::unordered_map<std::intptr_t, breakpoint> m_breakpoint;
+    void dump_registers();
+    uint64_t read_memory(uint64_t address);
+    void write_memory(uint64_t address, uint64_t value);
+    uint64_t get_pc();
+    void set_pic(uint64_t pc);
 };
