@@ -10,7 +10,16 @@
 #include <sys/ptrace.h>
 #include <unordered_map>
 #include <cstdint>
+#include <fstream>
+#include <utility>
+#include <iomanip>
+#include <fcntl.h>
+
 #include "breakpoint.hpp"
+#include "registers.hpp"
+#include "dwarf/dwarf++.hh"
+#include "elf/elf++.hh"
+
 
 class debugger
 {
@@ -33,4 +42,7 @@ class debugger
     void set_pc(uint64_t pc);
     void step_over_breakpoint();
     void wait_for_signal();
+    dwarf::dwarf m_dwarf;
+    elf::elf m_elf;
+    dwarf::die get_functions_from_pc(uint64_t pc);
 };

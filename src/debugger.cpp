@@ -1,8 +1,14 @@
 #include "debugger.hpp"
-#include "registers.hpp"
-#include <iomanip>
 
-debugger::debugger(std::string prog_name, pid_t pid) : m_prog_name{std::move(prog_name)}, m_pid{pid} {};
+
+debugger::debugger(std::string prog_name, pid_t pid) : m_prog_name{std::move(prog_name)}, m_pid{pid} 
+{
+    auto fd = open(m_prog_name.c_str(), O_RDONLY);
+
+    m_elf = elf::elf{elf::create_mmap_loader(fd)};
+    m_dwarf = dwarf::dwarf{dwarf::elf::create_loader(m_elf)};
+    
+};
 
 void debugger::run()
 {
@@ -162,5 +168,28 @@ void debugger::wait_for_signal()
     int wait_status;
     auto options = 0;
     waitpid(m_pid, &wait_status, options);
+}
+
+dwarf::die debugger::get_functions_from_pc(uint64_t pc)
+{
+    for(auto &cu : m_dwarf.compilation_units())
+    {
+        if(die_pc_range(cu.root()).contains(pc)) 
+        {
+            for(const auto &die : cu.root())
+            {
+                if(die.tag == dwarf::DW_TAG::subprogram)
+                {
+                    if(die_pc_range(die).contains(pc))
+                    {
+                        return die;
+                    }
+                }
+            }
+        }
+
+    }
+
+    throw std::out_of_range{"Cannot find function"};
 }
 
