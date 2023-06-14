@@ -14,6 +14,7 @@
 #include <utility>
 #include <iomanip>
 #include <fcntl.h>
+#include <iostream>
 
 #include "breakpoint.hpp"
 #include "registers.hpp"
@@ -23,13 +24,17 @@
 
 class debugger
 {
-    public: debugger(std::string prog_name, pid_t pid);
+    public: 
+    debugger(std::string prog_name, pid_t pid);
     void run();
     void set_breakpoint_at_address(std::intptr_t address);
 
     private:
     std::string m_prog_name;
     pid_t m_pid;
+    uint64_t m_load_address;
+    dwarf::dwarf m_dwarf;
+    elf::elf m_elf;
 
     private:
     void handle_command(const std::string &line);
@@ -42,7 +47,9 @@ class debugger
     void set_pc(uint64_t pc);
     void step_over_breakpoint();
     void wait_for_signal();
-    dwarf::dwarf m_dwarf;
-    elf::elf m_elf;
     dwarf::die get_functions_from_pc(uint64_t pc);
+    dwarf::line_table::iterator get_line_entry_from_pc(uint64_t pc);
+    void initialise_load_address();
+    uint64_t offset_load_address(uint64_t addr);
+    void print_source(const std::string &file_name, unsigned line, unsigned n_lines_context);
 };

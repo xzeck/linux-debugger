@@ -12,6 +12,9 @@ debugger::debugger(std::string prog_name, pid_t pid) : m_prog_name{std::move(pro
 
 void debugger::run()
 {
+
+    wait_for_signal();
+    initialise_load_address();
     int wait_status;
     auto options = 0;
 
@@ -191,5 +194,83 @@ dwarf::die debugger::get_functions_from_pc(uint64_t pc)
     }
 
     throw std::out_of_range{"Cannot find function"};
+}
+
+dwarf::line_table::iterator debugger::get_line_entry_from_pc(uint64_t pc)
+{
+    for(auto &cu : m_dwarf.compilation_units())
+    {
+        if(die_pc_range(cu.root()).contains(pc))
+        {
+            auto &lt = cu.get_line_table();
+
+            auto it = lt.find_address(pc);
+
+            if(it == lt.end())
+            {
+                throw std::out_of_range{"Cannot find line entry"};
+            }
+            else
+            {
+                return it;
+            }
+        }
+    }
+    
+    throw std::out_of_range{"Cannot find line entry"};
+
+}
+
+void debugger::initialise_load_address()
+{
+    // use this if its a dynamic library
+    if(m_elf.get_hdr().type == elf::et::dyn)
+    {
+        std::ifstream map("/proc/" + std::to_string(m_pid) + "/maps");
+
+        std::string addr;
+        std::getline(map, addr, '-');
+
+        m_load_address = std::stol(addr, 0, 16);
+    }
+}
+
+uint64_t debugger::offset_load_address(uint64_t addr)
+{
+    return addr - m_load_address;
+}
+
+void debugger::print_source(const std::string &file_name, unsigned line, unsigned n_lines_context)
+{
+    std::ifstream file {file_name};
+
+    auto start_line = line <= n_lines_context ? 1 : line - n_lines_context;
+    auto end_line = line + n_lines_context + (line < n_lines_context ? n_lines_context - line: 0) + 1;
+
+    char c{};
+    auto current_line = 1u;
+
+    // skip lines up until start line
+    while(current_line != start_line && file.get(c))
+    {
+        if(c == '\n')
+        {
+            ++current_line;
+        }
+    }
+
+    // print when we are at current_line
+    std::cout << (current_line == line ? "> ": " ");
+
+    // print lines up until we reach end_line
+    while(current_line <= end_line && file.get(c))
+    {
+        std::cout << c;
+        if(c == '\n')
+        {
+            ++current_line;
+            std::cout << (current_line == line ? "> " : " ");
+        }
+    }
 }
 
