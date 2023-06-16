@@ -10,8 +10,13 @@ set_target_properties(debugger
 
 add_executable(hello tests/hello.cpp)
 set_target_properties(hello
-                      PROPERTIES COMPILE_FLAGS "-g -O0 -Wall -Wextra"
+                      PROPERTIES COMPILE_FLAGS "-g -O0 -Wall -Wextra -gdwarf-4 -gstrict-dwarf"
                       RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/out/hello)
+
+add_executable(steps tests/steps.cpp)
+set_target_properties(steps
+                      PROPERTIES COMPILE_FLAGS "-g -O0 -Wall -Wextra -gdwarf-4 -gstrict-dwarf"
+                      RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/out/steps)
 
 add_custom_target(
    libelfin

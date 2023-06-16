@@ -28,11 +28,12 @@ class debugger
     debugger(std::string prog_name, pid_t pid);
     void run();
     void set_breakpoint_at_address(std::intptr_t address);
+    void print_source(const std::string &file_name, unsigned line, unsigned n_lines_context=2);
 
     private:
     std::string m_prog_name;
     pid_t m_pid;
-    uint64_t m_load_address;
+    uint64_t m_load_address = 0;
     dwarf::dwarf m_dwarf;
     elf::elf m_elf;
 
@@ -47,9 +48,18 @@ class debugger
     void set_pc(uint64_t pc);
     void step_over_breakpoint();
     void wait_for_signal();
-    dwarf::die get_functions_from_pc(uint64_t pc);
+    dwarf::die get_function_from_pc(uint64_t pc);
     dwarf::line_table::iterator get_line_entry_from_pc(uint64_t pc);
     void initialise_load_address();
     uint64_t offset_load_address(uint64_t addr);
-    void print_source(const std::string &file_name, unsigned line, unsigned n_lines_context);
+    siginfo_t get_signal_info();
+    void handle_sigtrap(siginfo_t info);
+    void single_step_instruction();
+    void single_step_instruction_with_breakpoint_check();
+    void step_out();
+    void remove_breakpoint(std::intptr_t addr);
+    void step_in();
+    uint64_t get_offset_pc();
+    uint64_t offset_dwarf_address(uint64_t addr);
+    void step_over();
 };

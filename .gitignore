@@ -12,3 +12,5 @@ _deps
 out/*
 build
 debugger
+.cmake
+.idea

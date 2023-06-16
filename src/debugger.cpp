@@ -15,10 +15,10 @@ void debugger::run()
 
     wait_for_signal();
     initialise_load_address();
-    int wait_status;
-    auto options = 0;
+    // int wait_status;
+    // auto options = 0;
 
-    waitpid(m_pid, &wait_status, options);
+    // waitpid(m_pid, &wait_status, options);
 
     char *line = nullptr;
 
@@ -61,7 +61,6 @@ void debugger::handle_command(const std::string &line)
     else if (is_prefix(command, "break")) 
     {
         std::string addr {args[1], 2}; // assuming the second argument is the address 0xADDRESS
-        std::cout << addr << std::endl;
         auto address = std::stol(addr, 0, 16);
 
         
@@ -96,6 +95,24 @@ void debugger::handle_command(const std::string &line)
             std::string val {args[3], 2}; // assume 0xVAL
             write_memory(std::stol(addr, 0, 16), std::stol(val, 0, 16));
         }
+    }
+    else if(is_prefix(command, "step"))
+    {
+        step_in();
+    }
+    else if(is_prefix(command, "stepi"))
+    {
+        single_step_instruction_with_breakpoint_check();
+        auto line_entry = get_line_entry_from_pc(get_pc());
+        print_source(line_entry->file->path, line_entry->line);
+    }
+    else if(is_prefix(command, "next"))
+    {
+        step_over();
+    }
+    else if(is_prefix(command, "finish"))
+    {
+        step_out();
     }
     else
         std::cerr << "Unknown command" << std::endl;
@@ -146,18 +163,13 @@ void debugger::set_pc(uint64_t pc)
 
 void debugger::step_over_breakpoint()
 {
-    // The execution will be decremented by 1 as it goes beyond the breakpoint.
-    auto possible_breakpoint_location = get_pc() - 1;
 
-    if(m_breakpoint.count(possible_breakpoint_location))
+    if(m_breakpoint.count(get_pc()))
     {
-        auto &bp = m_breakpoint[possible_breakpoint_location];
+        auto &bp = m_breakpoint[get_pc()];
 
         if(bp.is_enabled())
         {
-            auto previous_instruction_address = possible_breakpoint_location;
-            set_pc(previous_instruction_address);
-
             bp.disable();
             ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
             wait_for_signal();
@@ -171,15 +183,31 @@ void debugger::wait_for_signal()
     int wait_status;
     auto options = 0;
     waitpid(m_pid, &wait_status, options);
+
+    auto siginfo = get_signal_info();
+
+    switch(siginfo.si_signo)
+    {
+        case SIGTRAP:
+            handle_sigtrap(siginfo);
+            break;
+        case SIGSEGV:
+            std::cout << "Segfault: " << siginfo.si_code << std::endl;
+            break;
+        default:
+            std::cout << "Got signal " << strsignal(siginfo.si_signo) << std::endl;
+    }
 }
 
-dwarf::die debugger::get_functions_from_pc(uint64_t pc)
+dwarf::die debugger::get_function_from_pc(uint64_t pc)
 {
+
     for(auto &cu : m_dwarf.compilation_units())
     {
-        if(die_pc_range(cu.root()).contains(pc)) 
+
+        if(die_pc_range(cu.root()).contains(pc))
         {
-            for(const auto &die : cu.root())
+            for(const auto& die : cu.root())
             {
                 if(die.tag == dwarf::DW_TAG::subprogram)
                 {
@@ -233,6 +261,7 @@ void debugger::initialise_load_address()
 
         m_load_address = std::stol(addr, 0, 16);
     }
+
 }
 
 uint64_t debugger::offset_load_address(uint64_t addr)
@@ -274,3 +303,157 @@ void debugger::print_source(const std::string &file_name, unsigned line, unsigne
     }
 }
 
+siginfo_t debugger::get_signal_info()
+{
+    siginfo_t info;
+
+    ptrace(PTRACE_GETSIGINFO, m_pid, nullptr, &info);
+
+    return info;
+}
+
+void debugger::handle_sigtrap(siginfo_t info)
+{
+    switch(info.si_code )
+    {
+        // SI_KERNEL and TRAP_BRKPT is sent when a breakpoint is hit
+        case SI_KERNEL:
+        case TRAP_BRKPT:
+        {
+            // put program counter back since it passes the breakpoint
+            set_pc(get_pc() - 1);
+            std::cout << "Hit breakpoint at address 0x" << std::hex << get_pc() << std::endl;
+            auto offset_pc = offset_load_address(get_pc()); // store offset of the pc for querying DWARF
+            auto line_entry = get_line_entry_from_pc(offset_pc);
+            print_source(line_entry->file->path, line_entry->line);
+            return;
+        }
+
+        // For single stepping
+        case TRAP_TRACE:
+            return;
+        default:
+            std::cout << "SIGTRAP Code - Unknown " << info.si_code << std::endl;
+            return;
+
+    }
+}
+
+void debugger::single_step_instruction()
+{
+    ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+    wait_for_signal();
+}
+
+void debugger::single_step_instruction_with_breakpoint_check()
+{
+    if(m_breakpoint.count(get_pc()))
+    {
+        step_over_breakpoint();
+    }
+    else
+    {
+        single_step_instruction();
+    }
+}
+
+void debugger::step_out()
+{
+    auto frame_pointer = get_register_value(m_pid, reg::rbp);
+    auto return_address = read_memory(frame_pointer + 8);
+
+    bool should_remove_breakpoint = false;
+
+    if(!m_breakpoint.count(return_address))
+    {
+        set_breakpoint_at_address(return_address);
+        should_remove_breakpoint = true;
+    }
+
+    continue_execution();
+
+    if(should_remove_breakpoint)
+    {
+        remove_breakpoint(return_address);
+    }
+}
+
+void debugger::remove_breakpoint(std::intptr_t addr)
+{
+    if(m_breakpoint.at(addr).is_enabled())
+    {
+        m_breakpoint.at(addr).disable();
+    }
+    m_breakpoint.erase(addr);
+}
+
+uint64_t debugger::get_offset_pc()
+{
+    return offset_load_address(get_pc());
+}
+
+void debugger::step_in()
+{
+    auto line = get_line_entry_from_pc(get_offset_pc())->line;
+
+    while(get_line_entry_from_pc(get_offset_pc())->line == line)
+    {
+        single_step_instruction_with_breakpoint_check();
+    }
+
+    auto line_entry = get_line_entry_from_pc(get_offset_pc());
+
+    print_source(line_entry->file->path, line_entry->line);
+}
+
+
+uint64_t debugger::offset_dwarf_address(uint64_t addr)
+{
+    return addr + m_load_address;
+}
+
+void debugger::step_over()
+{
+    auto func = get_function_from_pc(get_offset_pc());
+    auto func_entry = at_low_pc(func);
+    auto func_end = at_high_pc(func);
+
+    auto line = get_line_entry_from_pc(func_entry);
+    auto start_line = get_line_entry_from_pc(get_offset_pc());
+
+    // We must ensure that all break points are properly tracked within step functions 
+    // and to achieve this, we will use a std::vector to maintain a record of them.
+    // To establish all break points, we iterate through the table entries 
+    // until we encounter a value that falls outside the function's range. 
+    // For each entry, we verify that it is not the current line 
+    // and that no breakpoint has already been set at that particular location. 
+    // Additionally, we need to adjust the addresses obtained from the DWARF information
+    //  by the load address in order to accurately set breakpoints.
+    std::vector<std::intptr_t> to_delete{};
+
+    while(line->address < func_end)
+    {
+        auto load_address = offset_dwarf_address(line->address);
+        if(line->address != start_line->address && !m_breakpoint.count(load_address))
+        {
+            set_breakpoint_at_address(load_address);
+            to_delete.push_back(load_address);
+        }
+        ++line;
+    }
+
+    auto frame_pointer = get_register_value(m_pid, reg::rbp);
+    auto return_address = read_memory(frame_pointer = 8);
+    if(!m_breakpoint.count(return_address))
+    {
+        set_breakpoint_at_address(return_address);
+        to_delete.push_back(return_address);
+    }
+
+    continue_execution();
+
+    for(auto addr : to_delete)
+    {
+        remove_breakpoint(addr);
+    }
+}
