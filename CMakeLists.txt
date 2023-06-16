@@ -4,7 +4,7 @@ project (linux-debugger)
 add_compile_options(-std=c++14)
 
 include_directories(ext/libelfin ext/linenoise include)
-add_executable(debugger src/registers.cpp src/breakpoint.cpp src/debugger.cpp src/main.cpp ext/linenoise/linenoise.c)
+add_executable(debugger src/symbol.cpp src/registers.cpp src/breakpoint.cpp src/debugger.cpp src/main.cpp ext/linenoise/linenoise.c)
 set_target_properties(debugger
                      PROPERTIES COMPILE_FLAGS "-g -Wall -Wextra")
 
