@@ -457,3 +457,48 @@ void debugger::step_over()
         remove_breakpoint(addr);
     }
 }
+
+void debugger::set_breakpoint_at_function(const std::string &name)
+{
+    for(const auto &cu : m_dwarf.compilation_units())
+    {
+        for(const auto &die : cu.root())
+        {
+            if(die.has(dwarf::DW_AT::name) && at_name(die) == name)
+            {
+                auto low_pc = at_low_pc(die);
+                auto entry = get_line_entry_from_pc(low_pc);
+                ++entry;
+                set_breakpoint_at_address(offset_dwarf_address(entry->address));
+            }
+        }
+    }
+}
+
+bool is_suffix(const std::string &s, const std::string &of)
+{
+    if(s.size() > of.size()) return false;
+
+    auto diff = of.size() - s.size();
+    return std::equal(s.begin(), s.end(), of.begin() + diff);
+}
+
+void debugger::set_breakpoint_at_source_line(const std::string &file, unsigned line)
+{
+    for(const auto &cu : m_dwarf.compilation_units())
+    {
+        if(is_suffix(file, at_name(cu.root())))
+        {
+            const auto &lt = cu.get_line_table();
+
+            for(const auto &entry : lt)
+            {
+                if(entry.is_stmt && entry.line == line)
+                {
+                    set_breakpoint_at_address(offset_dwarf_address(entry.address));
+                    return;
+                }
+            }
+        }
+    }
+}

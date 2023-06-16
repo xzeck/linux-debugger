@@ -62,4 +62,6 @@ class debugger
     uint64_t get_offset_pc();
     uint64_t offset_dwarf_address(uint64_t addr);
     void step_over();
+    void set_breakpoint_at_function(const std::string &name);
+    void debugger::set_breakpoint_at_source_line(const std::string &file, unsigned line);
 };
