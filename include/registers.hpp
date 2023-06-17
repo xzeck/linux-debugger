@@ -60,4 +60,5 @@ uint64_t get_register_value(pid_t, reg r);
 void set_register_value(pid_t pid , reg r, uint64_t value);
 std::string get_register_name(reg r);
 reg get_register_from_name( const std::string& name);
+u_int64_t get_register_value_from_dwarf_register(pid_t pid, unsigned regnum);
 

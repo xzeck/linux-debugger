@@ -1,23 +1,23 @@
 void fun1()
 {
-    int foo = 1;
+    int quux = 1;
 }
 
 void fun2()
 {
-    int foo = 1;
+    int qux = 1;
     fun1();
 }
 
 void fun3()
 {
-    int foo = 1;
+    int baz = 1;
     fun2();
 }
 
 void fun4()
 {
-    int foo = 1;
+    int bar = 1;
     fun3();
 }
 

@@ -1,5 +1,42 @@
 #include "debugger.hpp"
 
+class ptrace_expr_context : public dwarf::expr_context
+{
+    public:
+    ptrace_expr_context (pid_t pid) : m_pid{pid} {};
+
+    // dwarf::taddr reg(unsigned regnum) override;
+
+    // dwarf::taddr pc() override;
+
+    // dwarf::taddr deref_size (dwarf::taddr address, unsigned size) override;
+
+    // dwarf::taddr xderef_size(dwarf::taddr address, dwarf::taddr asid, unsigned size) {};
+
+    // dwarf::taddr form_tls_address(dwarf::taddr address) { };
+    
+    dwarf::taddr reg(unsigned regnum) override
+    {
+        return get_register_value_from_dwarf_register(m_pid, regnum);
+    }
+
+    dwarf::taddr pc() override
+    {
+        struct user_regs_struct regs;
+        ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs);
+        return regs.rip;
+    }
+
+    dwarf::taddr deref_size(dwarf::taddr address, unsigned size) override
+    {
+        return ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+    }
+
+    private:
+    pid_t m_pid;
+};
+
+
 debugger::debugger(std::string prog_name, pid_t pid) : m_prog_name{std::move(prog_name)}, m_pid{pid} 
 {
     auto fd = open(m_prog_name.c_str(), O_RDONLY);
@@ -137,6 +174,10 @@ void debugger::handle_command(const std::string &line)
     else if(is_prefix(command, "backtrace"))
     {
         print_backtrace();
+    }
+    else if(is_prefix(command, "variables"))
+    {
+        read_variables();
     }
     else
         std::cerr << "Unknown command" << std::endl;
@@ -571,4 +612,47 @@ void debugger::print_backtrace()
         return_address = read_memory(frame_pointer + 8);
     }
 
+}
+void debugger::read_variables()
+{
+    using namespace dwarf;
+
+    // find the function we are currently in
+    auto func = get_function_from_pc(get_offset_pc());
+
+    // loop through the function and look at DW_AT_location
+    for(const auto & die : func) 
+    {
+        if(die.tag == DW_TAG::variable)
+        {
+            auto loc_val = die[DW_AT::location];
+
+            if(loc_val.get_type() == value::type::exprloc)
+            {
+                ptrace_expr_context context {m_pid};
+                auto result = loc_val.as_exprloc().evaluate(&context);
+
+                switch(result.location_type)
+                {
+                    case expr_result::type::address:
+                    {
+                        auto value = read_memory(result.value);
+                        std::cout << at_name(die) << " (0x" << std::hex << result.value << ") = " << value << std::endl;
+                        break;
+                    }
+
+                    case expr_result::type::reg:
+                    {
+                        std::cout << "Result Value: " << result.value << std::endl;
+                        auto value = get_register_value_from_dwarf_register(m_pid, result.value);
+                        std::cout << at_name(die) << " (reg " << result.value << ") = " << value << std::endl;
+                        break;
+                    }
+                    
+                    default:
+                    throw std::runtime_error{"Unhandled variable location"};
+                }
+            }
+        }
+    }
 }

@@ -21,6 +21,7 @@
 #include "dwarf/dwarf++.hh"
 #include "elf/elf++.hh"
 #include "symbol.hpp"
+#include "expr_context.hpp"
 
 class debugger
 {
@@ -66,4 +67,5 @@ class debugger
     void set_breakpoint_at_source_line(const std::string &file, unsigned line);
     std::vector<symbol> lookup_symbol(const std::string &name);
     void print_backtrace();
+    void read_variables();
 };
