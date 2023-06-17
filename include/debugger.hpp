@@ -37,11 +37,11 @@ class debugger
     uint64_t m_load_address = 0;
     dwarf::dwarf m_dwarf;
     elf::elf m_elf;
+    std::unordered_map<std::intptr_t, breakpoint> m_breakpoint;
 
     private:
     void handle_command(const std::string &line);
     void continue_execution();
-    std::unordered_map<std::intptr_t, breakpoint> m_breakpoint;
     void dump_registers();
     uint64_t read_memory(uint64_t address);
     void write_memory(uint64_t address, uint64_t value);
@@ -68,4 +68,5 @@ class debugger
     std::vector<symbol> lookup_symbol(const std::string &name);
     void print_backtrace();
     void read_variables();
+    void list_functions();
 };

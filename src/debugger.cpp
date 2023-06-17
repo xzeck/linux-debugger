@@ -179,6 +179,10 @@ void debugger::handle_command(const std::string &line)
     {
         read_variables();
     }
+    else if(is_prefix(command, "functions"))
+    {
+        list_functions();
+    }
     else
         std::cerr << "Unknown command" << std::endl;
 }
@@ -652,6 +656,20 @@ void debugger::read_variables()
                     default:
                     throw std::runtime_error{"Unhandled variable location"};
                 }
+            }
+        }
+    }
+}
+
+void debugger::list_functions()
+{
+    for(const auto &cu : m_dwarf.compilation_units())
+    {
+        for(const auto &die : cu.root())
+        {
+            if(die.tag == dwarf::DW_TAG::subprogram)
+            {
+                std::cout << "<0x" << std::hex << offset_dwarf_address(at_low_pc(die)) << "> " << at_name(die) << std::endl;
             }
         }
     }
